@@ -37,8 +37,9 @@ typedef struct
 typedef struct
 {
     uint32_t id;
-    char username[COLUMN_USERNAME_SIZE];
-    char email[COLUMN_EMAIL_SIZE];
+    // Add one for the null character (C Strings end with a null character)
+    char username[COLUMN_USERNAME_SIZE + 1];
+    char email[COLUMN_EMAIL_SIZE + 1];
 } Row;
 
 //  enum result codes -> Alternative of Exceptions in C
@@ -52,6 +53,8 @@ typedef enum
 {
     PREPARE_SUCCESS,
     PREPARE_UNRECOGNIZED_STATEMENT,
+    PREPARE_NEGATIVE_ID,
+    PREPARE_STRING_TOO_LONG,
     PREPARE_SYNTAX_ERROR
 } PrepareResult;
 
@@ -119,27 +122,58 @@ void read_input(InputBuffer *input_buffer)
     input_buffer->input_length = bytes_read - 1;
     input_buffer->buffer[bytes_read - 1] = 0;
 }
+// Prepare the insert
+
+// NOTE
+/*
+
+Calling strtok successively on the input buffer breaks it 
+into substrings by inserting a null character whenever it 
+reaches a delimiter (space, in this case). 
+It returns a pointer to the start of the substring.
+
+
+*/
+PrepareResult prepare_insert(InputBuffer* input_buffer, Statement* statement) {
+    statement->type = STATEMENT_INSERT;
+
+    char* keyword = strok(input_buffer->buffer, " ");
+    char* id_string = strok(NULL, " ");
+    char* username = strok(NULL, " ");
+    char* email = strok(NULL, " ");
+
+
+    if(id_string == NULL || username == NULL || email == NULL){
+        return PREPARE_SYNTAX_ERROR;
+    }
+
+    int id = atoi(id_string);
+
+    if(id < 0){
+        return PREPARE_NEGATIVE_ID;
+    }
+
+
+    if(strlen(username) > COLUMN_USERNAME_SIZE) {
+        return PREPARE_STRING_TOO_LONG;
+    }
+    if(strlen(email > COLUMN_EMAIL_SIZE)){
+        return PREPARE_STRING_TOO_LONG;
+    }
+
+    statement->row_to_insert.id = id;
+    strcpy(statement->row_to_insert.username, username);
+    strcpy(statement->row_to_insert.email, email);
+
+    return PREPARE_SUCCESS;
+}
+
 
 // Parse Arguments and prepare the statement
-PrepareResult prepare_statement(InputBuffer *input_buffer, Statement *statement)
-{
-    if (strncmp(input_buffer->buffer, "insert", 6) == 0)
-    {
-        statement->type = STATEMENT_INSERT;
-        int args_assigned = sscanf(
-            input_buffer->buffer, "insert %d %s %s", &(statement->row_to_insert.id),
-            statement->row_to_insert.username, statement->row_to_insert.email);
-
-        if (args_assigned < 3)
-        {
-            return PREPARE_SYNTAX_ERROR;
-        }
-    }
-    if (strcmp(input_buffer->buffer, "select") == 0)
-    {
-        statement->type = STATEMENT_SELECT;
-        return PREPARE_SUCCESS;
-    }
+PrepareResult prepare_statement(InputBuffer* input_buffer, Statement* statement) {
+if (strncmp(input_buffer->buffer, "insert", 6) == 0) {
+   return prepare_insert(input_buffer, statement);
+}
 }
 
 // Insert Handler
@@ -270,13 +304,18 @@ int main(int argc, char *argv[])
 
     switch (prepare_statement(input_buffer, &statement))
     {
+    
     case (PREPARE_SUCCESS):
         break;
     case (PREPARE_UNRECOGNIZED_STATEMENT):
         printf("Unrecognized keyword at start of '%s'.\n",
                input_buffer->buffer);
     case (PREPARE_SYNTAX_ERROR):
-        printf("Syntax Error. Could not parse Syntax");
+        printf("Syntax Error. Could not parse Syntax.\n");
+    case(PREPARE_STRING_TOO_LONG):
+        printf("String is too long.\n ");
+    case(PREPARE_NEGATIVE_ID):
+        printf("ID must be positive.\n");
 
         // this function will carry the VM Functionality
         // execute_statement(&statement);
