@@ -4,14 +4,15 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${vcpkgRoot}/x64-windows/include"
+                "${vcpkgRoot}/x64-windows/include",
+                "/usr/include/x86_64-linux-gnu"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "C:\\MinGW\\bin\\gcc.exe",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
             "intelliSenseMode": "windows-gcc-x86"
         }
